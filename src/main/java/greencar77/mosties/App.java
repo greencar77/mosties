@@ -1,5 +1,6 @@
 package greencar77.mosties;
 
+import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -16,8 +17,14 @@ public class App {
             duration = Integer.valueOf(args[0]);
         }
 
+        boolean beep  = false;
+        if (args.length > 1 && args[1].equals("beep")) {
+            beep = true;
+            System.out.println("Ar skaņas signālu");
+        }
+
         wait(duration);
-        notifyUser(duration);
+        notifyUser(duration, beep);
     }
 
     private static void wait(int duration) {
@@ -53,11 +60,15 @@ public class App {
         out(Message.CURRENT_TIME, current);
     }
 
-    private static void notifyUser(int duration) {
+    private static void notifyUser(int duration, boolean beep) {
         String message = String.format(Message.USER_NOTIFICATION, duration);
         
         out(Message.USER_NOTIFICATION, duration);
         JOptionPane.showMessageDialog(null, message);
+
+        if (beep) {
+            beepUntilInterrupted();
+        }
     }
 
     private static void sleepSafe(int millis) {
@@ -74,5 +85,25 @@ public class App {
 
     private static void out(String message, Object... args) {
         System.out.println(String.format(message, args));
+    }
+
+    private static void beepUntilInterrupted() {
+        Thread t = new Thread(new Runnable() {
+            public void run() {
+                while (true) {
+                    System.out.print("\007");
+                    sleepSafe(1000);
+                }
+            }
+        });
+
+        t.start();
+        try {
+            System.out.println("Nospiediet Enter:");
+            System.in.read();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        t.stop();
     }
 }
