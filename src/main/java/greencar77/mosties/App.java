@@ -1,10 +1,12 @@
 package greencar77.mosties;
 
-import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import javax.swing.JOptionPane;
+import greencar77.mosties.notification.DialogNotification;
+import greencar77.mosties.notification.SoundNotification;
 
 public class App {
     private static int DEFAULT_DURATION_MINS = 30; //minutes
@@ -21,6 +23,7 @@ public class App {
         if (args.length > 1 && args[1].equals("beep")) {
             beep = true;
             System.out.println("Ar skaņas signālu");
+            SoundNotification.beep();
         }
 
         wait(duration);
@@ -36,9 +39,8 @@ public class App {
         out(Message.STARTING, duration, end.getTime());
 
         if (INFO_INTERVAL == null) {
-            sleepSafe(duration * 60 * 1000);
-        }
-        else {
+            Utils.sleepSafe(duration * 60 * 1000);
+        } else {
             while (current.compareTo(end.getTime()) < 0) {
                 long deltaSeconds = (end.getTimeInMillis() - current.getTime()) / 1000;
                 long minutes = deltaSeconds / 60;
@@ -48,10 +50,10 @@ public class App {
 
                 if (deltaSeconds < INFO_INTERVAL * 60) {
                     //partial interval
-                    sleepSafe((int)(end.getTimeInMillis() - current.getTime()));
+                    Utils.sleepSafe((int)(end.getTimeInMillis() - current.getTime()));
                 } else {
                     //full interval
-                    sleepSafe(INFO_INTERVAL * 60 * 1000);
+                    Utils.sleepSafe(INFO_INTERVAL * 60 * 1000);
                 }
                 current = new Date();
             }
@@ -64,46 +66,16 @@ public class App {
         String message = String.format(Message.USER_NOTIFICATION, duration);
         
         out(Message.USER_NOTIFICATION, duration);
-        JOptionPane.showMessageDialog(null, message);
-
+        
+        ExecutorService executor = Executors.newFixedThreadPool(2); //1 for Dialog + 1 for Sound
+        executor.submit(new DialogNotification(message));
         if (beep) {
-            beepUntilInterrupted();
+            executor.submit(new SoundNotification());
         }
-    }
-
-    private static void sleepSafe(int millis) {
-        if (millis < 0) {
-            //Avoid "java.lang.IllegalArgumentException: timeout value is negative"
-            return;
-        }
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        executor.shutdown();
     }
 
     private static void out(String message, Object... args) {
         System.out.println(String.format(message, args));
-    }
-
-    private static void beepUntilInterrupted() {
-        Thread t = new Thread(new Runnable() {
-            public void run() {
-                while (true) {
-                    System.out.print("\007");
-                    sleepSafe(1000);
-                }
-            }
-        });
-
-        t.start();
-        try {
-            System.out.println("Nospiediet Enter:");
-            System.in.read();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        t.stop();
     }
 }
